@@ -8,12 +8,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $passwordcheck = $_POST['passwordcheck'];
 
     if ($password == $passwordcheck) {
+
         $stmt = $pdo->prepare("SELECT * FROM user WHERE username = ?");
         $stmt->execute([$username]);
+
         if ($stmt->rowCount() == 0) {
-            $stmt = $pdo->prepare("INSERT INTO user (username, password, balance, isAdmin) VALUES (?, ?, 100, 0)");
-            $stmt->execute([$username, $password]);
+
+           $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+    $stmt = $pdo->prepare("INSERT INTO user (username, password, balance, isAdmin) VALUES (?, ?, 100, 0)");
+    $stmt->execute([$username, $hashedPassword]);
+
             $success = "Je account is aangemaakt, je kunt nu inloggen";
+            
         } else {
             $error = "Deze gebruikersnaam is al in gebruik";
         }
@@ -53,7 +60,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <span class="block sm:inline"><?= $success ?></span>
             </div>
         <?php endif; ?>
-        <form action="<? echo htmlspecialchars($_SERVER["PHP_SELF"]);  ?>" method="post">
+        <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]);  ?>" method="post">
             <div class="mb-4">
                 <label for="username" class="block text-sm font-medium text-gray-700">Gebruikersnaam:</label>
                 <input type="text" id="username" name="username" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
