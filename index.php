@@ -12,20 +12,18 @@ if($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = $_POST['username'];
     $password = $_POST['password'];
 
-$sql = "SELECT * FROM user WHERE username = :username AND password = :password";
+$sql = "SELECT * FROM user WHERE username = :username";
 $stmt = $pdo->prepare($sql);
-
-$stmt->execute([
-    ':username' => $username,
-    ':password' => $password
-]);
+$stmt->execute([':username' => $username]);
 
 $user = $stmt->fetch();
 
+
   if ($user) {
     $_SESSION['loggedin'] = true;
-    $_SESSION['username'] = $username;
+    $_SESSION['username'] = $user['username'];
     $_SESSION['user'] = $user;
+    $_SESSION['user_id'] = $user['id'];
 
     header("Location: dashboard.php");
     exit;
@@ -54,7 +52,7 @@ $user = $stmt->fetch();
             <img src="img/Omanido1.png" alt="Omanido Logo" class="mb-6 w-1/2"> <!-- Aanpassen van de breedte naar 1/2 van de container -->
         </div>
         <h2 class="text-lg text-center font-bold mb-6">Inloggen bij Omanido</h2>
-        <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]);  ?>" method="post">
+        <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"], ENT_QUOTES, 'UTF_8');  ?>" method="post">
             <div class="mb-4">
                 <label for="username" class="block text-sm font-medium text-gray-700">Gebruikersnaam:</label>
                 <input type="text" id="username" name="username" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
