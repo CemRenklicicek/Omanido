@@ -11,6 +11,11 @@ if(!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true){
 if($_SERVER["REQUEST_METHOD"] == "POST"){
     $ontvanger = $_POST['ontvanger'];
     $bedrag = $_POST['bedrag'];
+    $omschrijving = trim($_POST['omschrijving']);
+
+    if(strlen($omschrijving) > 500){
+        $error = "Omschrijving mag maximaal 500 tekens bevatten.";
+    }
 
     // Controleer of de ontvanger bestaat
     $stmt = $pdo->prepare("SELECT * FROM user WHERE username = ?");
@@ -22,7 +27,12 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
         if($_SESSION['user']['balance'] >= $bedrag) {
             // Zet de transactie in de database
             $stmt = $pdo->prepare("INSERT INTO transaction (sender, receiver, amount, description) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$_SESSION['user']['id'], $ontvanger['id'], $bedrag, $_POST['omschrijving']]);
+            $stmt->execute([
+                $_SESSION['user']['id'], 
+                $ontvanger['id'], 
+                $bedrag, 
+                $omschrijving
+        ]);
 
             // Haal het saldo van de ontvanger op
             $stmt = $pdo->prepare("SELECT balance FROM user WHERE username = ?");
@@ -91,7 +101,7 @@ $saldo = $stmt->fetchColumn();
                         €<?php echo number_format($saldo, 2, ',', '.'); ?>
                     </p>
                     <div class="text-center">
-                        <a href="transacties.php?id=<?= $_SESSION['user']['id'] ?>" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                        <a href="transacties.php" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
                             Transactieoverzicht
                         </a>
                     </div>
@@ -119,10 +129,14 @@ $saldo = $stmt->fetchColumn();
                         <input type="submit" value="Overmaken" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700 focus:outline-none focus:shadow-outline">
                         <?php
                             if(isset($error)) {
-                                echo '<p class="text-red-500 text-sm mt-2">' . $error . '</p>';
+                                echo '<p class="text-red-500 text-sm mt-2">' .
+                                htmlspecialchars($error, ENT_QUOTES, 'UTF-8') . 
+                                '</p>';
                             }
                             if(isset($success)) {
-                                echo '<p class="text-green-500 text-sm mt-2">' . $success . '</p>';
+                                echo '<p class="text-green-500 text-sm mt-2">' . 
+                                htmlspecialchars($success, ENT_QUOTES, 'UTF-8') . 
+                                '</p>';
                             }
                         ?>
                     </form>
