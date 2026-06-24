@@ -2,29 +2,36 @@
 session_start();
 include 'includes/db.php';
 
+
+
 if(!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true){
     header("location: index.php");
     exit;
 }
 
+$showOwnerNotice = !empty($_SESSION['owner_notified']);
+unset($_SESSION['owner_notified']);
+
 // als button is ingedrukt
 if($_SERVER["REQUEST_METHOD"] == "POST"){
-    $ontvanger = $_POST['ontvanger'];
+    $ontvangerNaam = $_POST['ontvanger'];
     $bedrag = $_POST['bedrag'];
     $omschrijving = trim($_POST['omschrijving']);
 
     if(strlen($omschrijving) > 500){
         $error = "Omschrijving mag maximaal 500 tekens bevatten.";
     }
-
-    // Controleer of de ontvanger bestaat
     $stmt = $pdo->prepare("SELECT * FROM user WHERE username = ?");
-    $stmt->execute([$ontvanger]);
+    $stmt->execute([$ontvangerNaam]);
     $ontvanger = $stmt->fetch();
 
     if($stmt->rowCount() == 1) {
         // Controleer of de gebruiker genoeg saldo heeft
-        if($_SESSION['user']['balance'] >= $bedrag) {
+        $stmt = $pdo->prepare("SELECT balance FROM user WHERE id = ?");
+        $stmt->execute([$_SESSION['user']['id']]);
+        $currentBalance = $stmt->fetchColumn();
+
+        if ($currentBalance >= $bedrag) {
             // Zet de transactie in de database
             $stmt = $pdo->prepare("INSERT INTO transaction (sender, receiver, amount, description) VALUES (?, ?, ?, ?)");
             $stmt->execute([
@@ -68,11 +75,12 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
 
 }
 
-include 'includes/db.php';
+
+
 
 // Haal het saldo van de ingelogde gebruiker op
 $stmt = $pdo->prepare("SELECT balance FROM user WHERE id = ?");
-$stmt->execute([$_SESSION['user']['id']]);
+$stmt->execute([$_SESSION['user_id']]);
 $saldo = $stmt->fetchColumn();
 ?>
 
@@ -87,6 +95,12 @@ $saldo = $stmt->fetchColumn();
 </head>
 <body class="bg-gray-100">
     <?php include 'includes/header.php'; ?>
+    
+    <?php if ($showOwnerNotice): ?>
+    <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-4 rounded">
+        ⚠️ Er zijn meerdere mislukte inlogpogingen gedetecteerd. De eigenaar is op de hoogte gebracht.
+    </div>
+<?php endif; ?>
 
     <div class="container mx-auto p-4">
         <div class="flex flex-wrap -mx-2">
@@ -107,6 +121,8 @@ $saldo = $stmt->fetchColumn();
                     </div>
                 </div>
             </div>
+
+            
 
 
             <!-- Overdrachtsformulier Kaart -->
