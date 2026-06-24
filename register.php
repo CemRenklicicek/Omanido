@@ -2,12 +2,41 @@
 session_start();
 include 'includes/db.php';
 
+function checkPasswordStrength($password) {
+    $score = 0;
+
+    if (strlen($password) >= 12) $score++;
+    if (strlen($password) >= 16) $score++;
+
+    if (preg_match('/[A-Z]/', $password)) $score++;
+    if (preg_match('/[a-z]/', $password)) $score++;
+    if (preg_match('/[0-9]/', $password)) $score++;
+    if (preg_match('/[^A-Za-z0-9]/', $password)) $score++;
+
+    $common = ['123456', 'password', 'qwerty', 'welkom123', 'admin'];
+    foreach ($common as $bad) {
+        if (stripos($password, $bad) !== false) {
+            $score -= 2;
+        }
+    }
+
+    return $score;
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = $_POST['username'];
+    $username = trim($_POST['username']);
     $password = $_POST['password'];
     $passwordcheck = $_POST['passwordcheck'];
 
-    if ($password == $passwordcheck) {
+
+if ($password != $passwordcheck) {
+
+    $error = "De wachtwoorden komen niet overeen";
+} elseif (checkPasswordStrength($password) < 4) {
+    $error = "Je wachtwoord is te zwak. Gebruik minimaal 12 tekens met hoofdletters, kleine letters, cijfer en speciaal tekens.";
+}
+
+   else {
 
         $stmt = $pdo->prepare("SELECT * FROM user WHERE username = ?");
         $stmt->execute([$username]);
@@ -16,16 +45,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-    $stmt = $pdo->prepare("INSERT INTO user (username, password, balance, isAdmin) VALUES (?, ?, 100, 0)");
-    $stmt->execute([$username, $hashedPassword]);
+    $stmt = $pdo->prepare("
+    INSERT INTO user (username, password, balance, isAdmin) 
+    VALUES (?, ?, 100, 0)");
+
+    $stmt->execute([
+        $username, $hashedPassword]);
 
             $success = "Je account is aangemaakt, je kunt nu inloggen";
             
         } else {
             $error = "Deze gebruikersnaam is al in gebruik";
         }
-    } else {
-        $error = "De wachtwoorden komen niet overeen";
+    
     }
 }
 
@@ -50,7 +82,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <h2 class="text-lg text-center font-bold mb-6">Registreren bij Omanido</h2>
         <?php if (isset($error)): ?>
             <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                <strong class="font-bold">Fout!</strong>
+                <strong class="font-bold">Error!</strong>
                 <span class="block sm:inline"><?= $error ?></span>
             </div>
         <?php endif; ?>
