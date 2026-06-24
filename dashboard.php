@@ -98,7 +98,7 @@ $saldo = $stmt->fetchColumn();
     
     <?php if ($showOwnerNotice): ?>
     <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-4 rounded">
-        ⚠️ Er zijn meerdere mislukte inlogpogingen gedetecteerd. De eigenaar is op de hoogte gebracht.
+        ⚠️ Er zijn meerdere mislukte inlogpogingen gedetecteerd.
     </div>
 <?php endif; ?>
 
