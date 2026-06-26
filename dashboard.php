@@ -1,11 +1,12 @@
 <?php
 session_start();
-include 'includes/db.php';
+$pdo = require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/auth.php';
 
 
 
 if(!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true){
-    header("location: index.php");
+    header("location: /Omanido/secureprogramminglessons/index.php");
     exit;
 }
 
@@ -28,14 +29,14 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
     if($stmt->rowCount() == 1) {
         // Controleer of de gebruiker genoeg saldo heeft
         $stmt = $pdo->prepare("SELECT balance FROM user WHERE id = ?");
-        $stmt->execute([$_SESSION['user']['id']]);
+        $stmt->execute([$_SESSION['user_id']]);
         $currentBalance = $stmt->fetchColumn();
 
         if ($currentBalance >= $bedrag) {
             // Zet de transactie in de database
             $stmt = $pdo->prepare("INSERT INTO transaction (sender, receiver, amount, description) VALUES (?, ?, ?, ?)");
             $stmt->execute([
-                $_SESSION['user']['id'], 
+                $_SESSION['user_id'], 
                 $ontvanger['id'], 
                 $bedrag, 
                 $omschrijving
@@ -55,7 +56,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
 
             // Bereken het nieuwe saldo van de ingelogde gebruiker
             $stmt = $pdo->prepare("SELECT balance FROM user WHERE id = ?");
-            $stmt->execute([$_SESSION['user']['id']]);
+            $stmt->execute([$_SESSION['user_id']]);
 
            //Bereken het nieuwe saldo van de ingelogde gebruiker
             $saldo = $stmt->fetchColumn();
@@ -63,7 +64,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
 
             // Update het saldo van de ingelogde gebruiker
             $stmt = $pdo->prepare("UPDATE user SET balance = ? WHERE id = ?");
-            $stmt->execute([$saldo, $_SESSION['user']['id']]);
+            $stmt->execute([$saldo, $_SESSION['user_id']]);
 
             $success = "Het bedrag is succesvol overgemaakt";
         } else {
@@ -82,6 +83,11 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
 $stmt = $pdo->prepare("SELECT balance FROM user WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);
 $saldo = $stmt->fetchColumn();
+
+
+
+
+
 ?>
 
 <!DOCTYPE html>
@@ -98,12 +104,14 @@ $saldo = $stmt->fetchColumn();
     
     <?php if ($showOwnerNotice): ?>
     <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-4 rounded">
-        ⚠️ Er zijn meerdere mislukte inlogpogingen gedetecteerd.
+        ⚠️ Er zijn meerdere mislukte inlogpogingen gedetecteerd. De eigenaar is op de hoogte gebracht.
     </div>
 <?php endif; ?>
 
     <div class="container mx-auto p-4">
         <div class="flex flex-wrap -mx-2">
+
+
             <!-- Saldo Kaart -->
             <div class="w-full md:w-1/3 px-2 mb-4">
                 <div class="bg-white p-6 rounded-lg shadow-md h-full flex flex-col justify-between">
