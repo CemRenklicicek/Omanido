@@ -1,7 +1,7 @@
 <?php 
 session_start();
 
-require 'includes/db.php';
+$pdo = require_once __DIR__ . '/includes/db.php';
 
 include 'includes/userTable.php';
 include 'includes/transactionTable.php';
@@ -94,17 +94,14 @@ $stmt->execute([$user['id']]);
   $score = checkPasswordStrength($password);
 
   if ($score < 4) {
-    $_SESSION['weak_password_warning'] = 
-    "Je wachtwoord is zwak. Het is aanbevolen als je het verandert.";
+    $_SESSION['weak_password_warning'] = true;
   }
 
     $_SESSION['loggedin'] = true;
     $_SESSION['username'] = $user['username'];
     $_SESSION['user_id'] = $user['id'];
-    $_SESSION['user'] = [
-        'id' => $user['id'], 
-        'username' => $user['username']
-    ];
+    $_SESSION['isAdmin'] = $user['isAdmin'];
+   
 
     header ("Location: dashboard.php");
     exit;
@@ -195,7 +192,6 @@ exit;
             <p class="text-red-600 text-center mb-4">
                 <?php
                 echo $_SESSION['login_error'];
-                unset($_SESSION['login_error']);
                 ?>
             </p>
             <?php } ?>
@@ -215,10 +211,7 @@ exit;
             <input type="submit" value="Inloggen" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700 focus:outline-none focus:shadow-outline">
         </form>
         <a href="register.php" class="block text-center text-sm text-blue-600 hover:underline mt-4">Nog geen account? Registreer hier</a>
-         <a href="changepassword.php"
-        class="block text-center text-sm text-blue-600 hover:underline mt-2">
-    Wachtwoord wijzigen
-    </a>
+       
     </div>
     
 
