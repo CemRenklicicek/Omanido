@@ -28,15 +28,28 @@ if (isset($_SESSION['loggedin'])) {
         <?php endif; ?>
     </div>
 
-    <?php if (!empty($_SESSION['weak_password_warning'])) { ?>
+<?php
+$currentPage = basename($_SERVER['PHP_SELF']);
+
+$allowedPages = [
+    'dashboard.php',
+    'transacties.php',
+];
+?>
+
+<?php if (
+    !empty($_SESSION['weak_password_warning']) &&
+    in_array($currentPage, $allowedPages)
+): ?>
     <div class="max-w-7xl mx-auto px-4 mt-3">
         <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 p-3 rounded">
-            <?= htmlspecialchars($_SESSION['weak_password_warning'], ENT_QUOTES, 'UTF-8') ?>
+            Je wachtwoord is zwak. Het is aanbevolen om het te veranderen.
+            <a href="changepassword.php" class="text-blue-600 underline font-semibold ml-2">
+                Wachtwoord wijzigen
+            </a>
         </div>
     </div>
-    <?php 
-    unset($_SESSION['weak_password_warning']); 
-    } ?>
+<?php endif; ?>
 
 
 </div>
