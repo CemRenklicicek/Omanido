@@ -13,13 +13,17 @@ if ($checkTable->rowCount() == 0) {
         PRIMARY KEY (`id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
 
-    // Voeg de standaardgebruikers toe
+$adminHash = password_hash('AlfaBankAdminAccount', PASSWORD_DEFAULT);
+$ferryHash = password_hash('12345678', PASSWORD_DEFAULT);
+$hanHash   = password_hash('password', PASSWORD_DEFAULT);
+$royHash   = password_hash('qwerty', PASSWORD_DEFAULT);
+
     $insertUsersQuery = "
     INSERT INTO `user` (`id`, `username`, `password`, `balance`, `isAdmin`) VALUES
-    (1, 'Admin', 'AlfaBankAdminAccount', 1000.00, 0),
-    (2, 'FerryKuhlman', '12345678', 1255.36, 0),
-    (5, 'Han2002', 'password', 23424.84, 0),
-    (6, 'RoyBos', 'qwerty', 9.23, 0);
+    (1, 'Admin', '$adminHash', 1000.00, 0),
+    (2, 'FerryKuhlman', '$ferryHash', 1255.36, 0),
+    (5, 'Han2002', '$hanHash', 23424.84, 0),
+    (6, 'RoyBos', '$royHash', 9.23, 0);
     ";
 
     // Voer de SQL-query uit om de gebruikers toe te voegen
