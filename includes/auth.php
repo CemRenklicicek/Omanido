@@ -1,16 +1,18 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
 
 if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     header("Location: index.php");
     exit;
 }
 
-function require_admin() {
-    if (($_SESSION['role'] ?? '') !== 'admin') {
-        http_response_code(403);
-        exit('Forbidden');
-    }
+$timeout = 5; // 15 minutes
+
+if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > $timeout) {
+    session_unset();
+    session_destroy();
+
+    header("Location: index.php");
+    exit;
 }
+
+$_SESSION['last_activity'] = time();
