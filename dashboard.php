@@ -10,69 +10,116 @@ if(!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true){
     exit;
 }
 
+
 $showOwnerNotice = !empty($_SESSION['owner_notified']);
 unset($_SESSION['owner_notified']);
 
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+
 // als button is ingedrukt
 if($_SERVER["REQUEST_METHOD"] == "POST"){
-    $ontvangerNaam = $_POST['ontvanger'];
-    $bedrag = $_POST['bedrag'];
-    $omschrijving = trim($_POST['omschrijving']);
 
-    if(strlen($omschrijving) > 500){
-        $error = "Omschrijving mag maximaal 500 tekens bevatten.";
+    $ontvangerNaam = trim($_POST['ontvanger'] ?? '');
+
+
+    if (empty($ontvangerNaam)) {
+        $error = "Voer een ontvanger in.";
     }
+
+
+    if (
+        !isset($_POST['csrf_token']) ||
+        !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])
+    ) {
+        die("Ongeldige aanvraag.");
+    }
+
+
+
+    $bedrag = filter_input(INPUT_POST, 'bedrag', FILTER_VALIDATE_FLOAT);
+
+    if ($bedrag === false || $bedrag <= 0) {
+        $error = "Voer een geldig positief bedrag in.";
+    } elseif ($bedrag > 5000) {
+        $error = "Je kunt maximaal €5000 per transactie overmaken";
+    }
+
+$omschrijving = trim(filter_input(INPUT_POST, 'omschrijving', FILTER_SANITIZE_FULL_SPECIAL_CHARS));
+
+    if (empty($omschrijving)) {
+    $error = "Omschrijving is verplicht.";
+} elseif (strlen($omschrijving) > 500) {
+    $error = "Omschrijving mag maximaal 500 tekens bevatten.";
+}
+
+
+if (!isset($error)) {
+
     $stmt = $pdo->prepare("SELECT * FROM user WHERE username = ?");
     $stmt->execute([$ontvangerNaam]);
     $ontvanger = $stmt->fetch();
 
-    if($stmt->rowCount() == 1) {
-        // Controleer of de gebruiker genoeg saldo heeft
-        $stmt = $pdo->prepare("SELECT balance FROM user WHERE id = ?");
-        $stmt->execute([$_SESSION['user_id']]);
-        $currentBalance = $stmt->fetchColumn();
-
-        if ($currentBalance >= $bedrag) {
-            // Zet de transactie in de database
-            $stmt = $pdo->prepare("INSERT INTO transaction (sender, receiver, amount, description) VALUES (?, ?, ?, ?)");
-            $stmt->execute([
-                $_SESSION['user_id'], 
-                $ontvanger['id'], 
-                $bedrag, 
-                $omschrijving
-        ]);
-
-            // Haal het saldo van de ontvanger op
-            $stmt = $pdo->prepare("SELECT balance FROM user WHERE username = ?");
-            $stmt->execute([$ontvanger['username']]);
-            $saldo = $stmt->fetchColumn();
-
-            // Bereken het nieuwe saldo van de ontvanger
-            $saldo = $saldo + $bedrag;
-
-            // Update het saldo van de ontvanger
-            $stmt = $pdo->prepare("UPDATE user SET balance = ? WHERE username = ?");
-            $stmt->execute([$saldo, $ontvanger['username']]);
-
-            // Bereken het nieuwe saldo van de ingelogde gebruiker
-            $stmt = $pdo->prepare("SELECT balance FROM user WHERE id = ?");
-            $stmt->execute([$_SESSION['user_id']]);
-
-           //Bereken het nieuwe saldo van de ingelogde gebruiker
-            $saldo = $stmt->fetchColumn();
-            $saldo = $saldo - $bedrag;
-
-            // Update het saldo van de ingelogde gebruiker
-            $stmt = $pdo->prepare("UPDATE user SET balance = ? WHERE id = ?");
-            $stmt->execute([$saldo, $_SESSION['user_id']]);
-
-            $success = "Het bedrag is succesvol overgemaakt";
-        } else {
-            $error = "Je hebt niet genoeg saldo om dit bedrag over te maken";
-        }
-    } else {
+    // STOP immediately if user invalid
+    if (!$ontvanger) {
         $error = "Deze gebruiker bestaat niet";
+    } elseif ($ontvanger['id'] == $_SESSION['user_id']) {
+        $error = "Je kunt geen geld naar jezelf overmaken";
     }
+
+    // ONLY continue if still no error
+    if (!isset($error)) {
+
+        try {
+            $pdo->beginTransaction();
+
+            // lock sender balance
+            $stmt = $pdo->prepare("SELECT balance FROM user WHERE id = ? FOR UPDATE");
+            $stmt->execute([$_SESSION['user_id']]);
+            $senderBalance = $stmt->fetchColumn();
+
+            if ($senderBalance < $bedrag) {
+                $error = "Je hebt niet genoeg saldo om dit bedrag over te maken";
+                $pdo->rollBack();
+            } else {
+
+                // get receiver balance
+                $stmt = $pdo->prepare("SELECT balance FROM user WHERE id = ?");
+                $stmt->execute([$ontvanger['id']]);
+                $receiverBalance = $stmt->fetchColumn();
+
+                // update balances
+                $stmt = $pdo->prepare("UPDATE user SET balance = ? WHERE id = ?");
+                $stmt->execute([$receiverBalance + $bedrag, $ontvanger['id']]);
+
+                $stmt = $pdo->prepare("UPDATE user SET balance = ? WHERE id = ?");
+                $stmt->execute([$senderBalance - $bedrag, $_SESSION['user_id']]);
+
+                // insert transaction
+                $stmt = $pdo->prepare("
+                    INSERT INTO transaction (sender, receiver, amount, description)
+                    VALUES (?, ?, ?, ?)
+                ");
+                $stmt->execute([
+                    $_SESSION['user_id'],
+                    $ontvanger['id'],
+                    $bedrag,
+                    $omschrijving
+                ]);
+
+                $pdo->commit();
+                $success = "Het bedrag is succesvol overgemaakt";
+            }
+
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            $error = "Er is iets misgegaan tijdens de transactie.";
+        }
+    }
+}
+
 
 }
 
@@ -138,13 +185,14 @@ $saldo = $stmt->fetchColumn();
                 <div class="bg-white p-6 rounded-lg shadow-md h-full"> <!-- Verhoogde padding van p-4 naar p-6 -->
                     <h3 class="font-bold text-xl mb-4">Geld Overmaken</h3>
                     <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]) ?>" method="post">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8'); ?>">
                         <div class="mb-4">
                             <label for="ontvanger" class="block text-sm font-medium text-gray-700">Ontvanger:</label>
                             <input type="text" id="ontvanger" name="ontvanger" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
                         </div>
                         <div class="mb-4">
                             <label for="bedrag" class="block text-sm font-medium text-gray-700">Bedrag(€):</label>
-                            <input type="number" id="bedrag" name="bedrag" step="0.01" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
+                            <input type="number" id="bedrag" name="bedrag" step="0.01" min="0.01" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
                         </div>
                         <div class="mb-4">
                             <label for="omschrijving" class="block text-sm font-medium text-gray-700">Omschrijving:</label>
